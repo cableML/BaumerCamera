@@ -1,10 +1,12 @@
 #include <baumer_camera/BaumerCamera.hpp>
 
-#include <iostream>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/highgui.hpp>
 
 #include <bgapi2_genicam/bgapi2_genicam.hpp>
+
+#include <iomanip>
+#include <iostream>
 
 namespace {
 
@@ -206,7 +208,7 @@ public:
       int endKey = 0;
       std::cin >> endKey;
       BGAPI2::SystemList::ReleaseInstance();
-      return returncode;
+      return;
     }
     else
     {
@@ -222,7 +224,7 @@ public:
       std::cin >> endKey;
       pSystem->Close();
       BGAPI2::SystemList::ReleaseInstance();
-      return returncode;
+      return;
     }
     else
     {
@@ -344,7 +346,7 @@ public:
       pInterface->Close();
       pSystem->Close();
       BGAPI2::SystemList::ReleaseInstance();
-      return returncode;
+      return;
     }
     else
     {
@@ -436,7 +438,7 @@ public:
       pInterface->Close();
       pSystem->Close();
       BGAPI2::SystemList::ReleaseInstance();
-      return returncode;
+      return;
     }
     else
     {
@@ -524,7 +526,7 @@ public:
     BGAPI2::Buffer * pBufferFilled = NULL;
     try
     {
-      for(int i = 0; i < 12; i++)
+      for(int i = 0; i < 10000; i++)
       {
         pBufferFilled = pDataStream->GetFilledBuffer(1000); //timeout 1000 msec
         if(pBufferFilled == NULL)
@@ -540,6 +542,9 @@ public:
         else
         {
           std::cout << " Image " << std::setw(5) << pBufferFilled->GetFrameID() << " received in memory address " << std::hex << pBufferFilled->GetMemPtr() << std::dec << std::endl;
+          cv::Mat const frame = cv::Mat((int)pBufferFilled->GetHeight(), (int)pBufferFilled->GetWidth(), CV_8UC1, (void*)pBufferFilled->GetMemPtr());
+          cv::imshow("", frame);
+          cv::waitKey(1);
           // queue buffer again
           pBufferFilled->QueueBuffer();
         }

@@ -14,6 +14,7 @@ else()
    find_package(OpenCV REQUIRED PATHS ${CUSTOM_OPENCV_BUILD_PATH} NO_DEFAULT_PATH)
 endif()
 
+set(bgapi_DIR "/opt/baumer-gapi-sdk/lib/cmake/bgapi" CACHE STRING "Path to the cmake subfolder of bgapi-sdk installation directory")
 find_package(bgapi 2.10 REQUIRED COMPONENTS genicam ext_sc)
 
 include_directories(

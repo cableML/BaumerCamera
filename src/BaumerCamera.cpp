@@ -86,6 +86,23 @@ public:
         , displayName{device->GetDisplayName()}
         , accessStatus{device->GetAccessStatus()}
       {
+        try
+        {
+          device->Open();
+          canBeOpened = true;
+          std::cout << ">>> Device Opened <<<\n" << device << std::endl;
+          device->Close();
+        }
+        catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+        {
+          std::cout << " Device  " << device->GetID() << " already opened " << std::endl;
+          std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+        }
+        catch (BGAPI2::Exceptions::AccessDeniedException& ex)
+        {
+          std::cout << " Device  " << device->GetID() << " already opened " << std::endl;
+          std::cout << " AccessDeniedException " << ex.GetErrorDescription() << std::endl;
+        }
       }
       std::string id;
       std::string vendor;
@@ -94,6 +111,7 @@ public:
       std::string tlType;
       std::string displayName;
       std::string accessStatus;
+      bool        canBeOpened{};
     };
 
   public:
@@ -465,6 +483,8 @@ public:
       {
         pDevice = (*deviceList)[sDeviceID];
       }
+#endif
+#if 0
       std::cout << "DEVICE PARAMETER SETUP" << std::endl;
       std::cout << "######################" << std::endl << std::endl;
       //SET TRIGGER MODE OFF (FreeRun)

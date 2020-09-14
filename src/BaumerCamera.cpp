@@ -241,15 +241,15 @@ public:
           systems.emplace_back(System{sytemIt->second, leaveSystemOpened, leaveInterfaceOpened, leaveDeviceOpened});
       }
     }
+    catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+    {
+      std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+    }
     catch (BGAPI2::Exceptions::IException& ex)
     {
       std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
       std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
       std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
-    catch (BGAPI2::Exceptions::ResourceInUseException& ex)
-    {
-      std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
     }
 
   auto GetAllAvailableDevices() -> std::vector<System::Interface::Device>

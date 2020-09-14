@@ -72,10 +72,34 @@ std::ostream& operator<<(std::ostream& out, BGAPI2::DeviceList* deviceList)
 
 class System {
 public:
-
   class Interface {
   public:
     class Device {
+    public:
+      class DataStream {
+      public:
+        DataStream(BGAPI2::DataStream* dataStream)
+          : id{dataStream->GetID()}
+          , tlType{dataStream->GetTLType()}
+          , dataStream{dataStream}
+        {
+          try
+          {
+            dataStream->Open();
+            isOpened = true;
+          }
+          catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+          {
+            std::cout << " Device  " << dataStream->GetID() << " already opened " << std::endl;
+            std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+          }
+        }
+        std::string id;
+        std::string tlType;
+        BGAPI2::DataStream* dataStream;
+        bool isOpened{};
+      };
+
     public:
       Device(BGAPI2::Device* device,
              std::function<bool(Device const& device)> leaveDeviceOpened = [](Device const&){ return true; })
@@ -93,6 +117,12 @@ public:
           device->Open();
           isOpened = true;
           std::cout << ">>> Device Opened <<<\n" << device << std::endl;
+          auto dataStreamList = device->GetDataStreams();
+          dataStreamList->Refresh();
+          for (auto dataStreamIt = dataStreamList->begin(); dataStreamIt != dataStreamList->end(); ++dataStreamIt)
+          {
+            dataStreams.emplace_back(DataStream{dataStreamIt->second});
+          }
           if (!leaveDeviceOpened(*this))
           {
             device->Close();
@@ -110,6 +140,46 @@ public:
           std::cout << " AccessDeniedException " << ex.GetErrorDescription() << std::endl;
         }
       }
+
+      void SetTriggerMode(bool on)
+      {
+        device->GetRemoteNode("TriggerMode")->SetString(on ? "On" : "Off");
+        std::cout << "TriggerMode: " << device->GetRemoteNode("TriggerMode")->GetValue() << std::endl;
+      }
+
+      bool GetTriggerMode()
+      {
+        return device->GetRemoteNode("TriggerMode")->GetValue() == "On" ? true : false;
+      }
+
+      auto GetExposureTime() -> std::pair<double, std::string>
+      {
+        BGAPI2::String sExposureNodeName = (device->GetRemoteNodeList()->GetNodePresent("ExposureTime"))
+                                            ? "ExposureTime"
+                                            : (device->GetRemoteNodeList()->GetNodePresent("ExposureTimeAbs"))
+                                              ? "ExposureTimeAbs"
+                                              : "";
+        auto exposureTime = device->GetRemoteNode(sExposureNodeName)->GetDouble();
+        auto unit = device->GetRemoteNode(sExposureNodeName)->GetUnit();
+        std::cout << "ExposureTime: " << std::fixed << std::setprecision(0) << exposureTime
+                  << " [" << unit << "]" << std::endl;
+        return std::make_pair(exposureTime, static_cast<std::string>(unit));
+      }
+
+      void SetExposureTime(double exposureTime)
+      {
+        BGAPI2::String sExposureNodeName = (device->GetRemoteNodeList()->GetNodePresent("ExposureTime"))
+                                           ? "ExposureTime"
+                                           : (device->GetRemoteNodeList()->GetNodePresent("ExposureTimeAbs"))
+                                             ? "ExposureTimeAbs"
+                                             : "";
+        device->GetRemoteNode(sExposureNodeName)->SetDouble(exposureTime);
+        exposureTime = device->GetRemoteNode(sExposureNodeName)->GetDouble();
+        auto unit = device->GetRemoteNode(sExposureNodeName)->GetUnit();
+        std::cout << "ExposureTime: " << std::fixed << std::setprecision(0) << exposureTime
+                  << " [" << unit << "]" << std::endl;
+      }
+
       std::string id;
       std::string vendor;
       std::string model;
@@ -119,6 +189,7 @@ public:
       std::string accessStatus;
       BGAPI2::Device* device;
       bool isOpened{};
+      std::vector<DataStream> dataStreams;
     };
 
   public:
@@ -293,6 +364,69 @@ public:
       if (device.isOpened)
       {
         std::cout << device.device << std::endl;
+        for (auto& dataStream : device.dataStreams)
+        {
+          if (dataStream.isOpened)
+          {
+            auto bufferList = dataStream.dataStream->GetBufferList();
+            for(auto i = 0; i < 4; ++i)
+            {
+              bufferList->Add(new BGAPI2::Buffer());
+            }
+            std::cout << "AnouncedCount: " << bufferList->GetAnnouncedCount() << std::endl;
+            for (auto const& buffer : *bufferList)
+            {
+              buffer->second->QueueBuffer();
+            }
+            dataStream.dataStream->StartAcquisitionContinuous();
+            device.device->GetRemoteNode("AcquisitionStart")->Execute();
+
+            for(int i = 0; i < 10000; i++)
+            {
+              auto pBufferFilled = dataStream.dataStream->GetFilledBuffer(1000);
+              if(pBufferFilled == nullptr)
+              {
+                std::cout << "Error: Buffer Timeout after 1000 msec" << std::endl;
+              }
+              else if(pBufferFilled->GetIsIncomplete() == true)
+              {
+                std::cout << "Error: Image is incomplete" << std::endl;
+                pBufferFilled->QueueBuffer();
+              }
+              else
+              {
+                std::cout << " Image " << std::setw(5) << pBufferFilled->GetFrameID() << " received in memory address " << std::hex << pBufferFilled->GetMemPtr() << std::dec << std::endl;
+                cv::Mat const frame = cv::Mat((int)pBufferFilled->GetHeight(), (int)pBufferFilled->GetWidth(), CV_8UC1, (void*)pBufferFilled->GetMemPtr());
+                cv::imshow("", frame);
+                cv::waitKey(1);
+                pBufferFilled->QueueBuffer();
+              }
+            }
+
+            if(device.device->GetRemoteNodeList()->GetNodePresent("AcquisitionAbort"))
+            {
+              device.device->GetRemoteNode("AcquisitionAbort")->Execute();
+              std::cout << "DeviceModel: " << device.device->GetModel() << " aborted " << std::endl;
+            }
+            device.device->GetRemoteNode("AcquisitionStop")->Execute();
+            std::cout << "DeviceModel: " << device.device->GetModel() << " stopped " << std::endl;
+            std::cout << std::endl;
+
+            auto exposureTime = device.GetExposureTime();
+            std::cout << "Exposure time: " << exposureTime.first << exposureTime.second << std::endl;
+
+            dataStream.dataStream->StopAcquisition();
+            std::cout << "DataStream stopped " << std::endl;
+            bufferList->DiscardAllBuffers();
+
+            while (bufferList->size() > 0)
+            {
+              auto pBuffer = bufferList->begin()->second;
+              bufferList->RevokeBuffer(pBuffer);
+              delete pBuffer;
+            }
+          }
+        }
       }
     }
 #if 0
@@ -536,8 +670,7 @@ public:
       {
         pDevice = (*deviceList)[sDeviceID];
       }
-#endif
-#if 0
+
       std::cout << "DEVICE PARAMETER SETUP" << std::endl;
       std::cout << "######################" << std::endl << std::endl;
       //SET TRIGGER MODE OFF (FreeRun)
@@ -654,7 +787,8 @@ public:
       }
 
       std::cout << " " << std::endl;
-
+#endif
+#if 0
       std::cout << "CAMERA STOP" << std::endl;
       std::cout << "###########" << std::endl << std::endl;
       //STOP CAMERA

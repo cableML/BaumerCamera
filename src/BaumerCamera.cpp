@@ -77,7 +77,8 @@ public:
   public:
     class Device {
     public:
-      Device(BGAPI2::Device* device)
+      Device(BGAPI2::Device* device,
+             std::function<bool(Device const& device)> leaveDeviceOpened = [](Device const&){ return true; })
         : id{device->GetID()}
         , vendor{device->GetVendor()}
         , model{device->GetModel()}
@@ -85,13 +86,18 @@ public:
         , tlType{device->GetTLType()}
         , displayName{device->GetDisplayName()}
         , accessStatus{device->GetAccessStatus()}
+        , device{device}
       {
         try
         {
           device->Open();
-          canBeOpened = true;
+          isOpened = true;
           std::cout << ">>> Device Opened <<<\n" << device << std::endl;
-          device->Close();
+          if (!leaveDeviceOpened(*this))
+          {
+            device->Close();
+            isOpened = false;
+          }
         }
         catch (BGAPI2::Exceptions::ResourceInUseException& ex)
         {
@@ -111,20 +117,25 @@ public:
       std::string tlType;
       std::string displayName;
       std::string accessStatus;
-      bool        canBeOpened{};
+      BGAPI2::Device* device;
+      bool isOpened{};
     };
 
   public:
-    Interface(BGAPI2::Interface* interface)
-    : id{interface->GetID()}
-    , displayName{interface->GetDisplayName()}
-    , tlType{interface->GetTLType()}
-    , devices{getDevices(interface)}
+    Interface(BGAPI2::Interface* interface,
+              std::function<bool(Interface const& interface)> leaveInterfaceOpened = [](Interface const&){ return true; },
+              std::function<bool(Device const& device)> leaveDeviceOpened = [](Device const&){ return true; })
+      : id{interface->GetID()}
+      , displayName{interface->GetDisplayName()}
+      , tlType{interface->GetTLType()}
+      , devices{getDevices(interface, leaveInterfaceOpened, leaveDeviceOpened)}
+      , interface{interface}
     {
-
     }
 
-    static auto getDevices(BGAPI2::Interface* interface) -> std::vector<Device>
+    auto getDevices(BGAPI2::Interface* interface,
+                    std::function<bool(Interface const& interface)> leaveInterfaceOpened = [](Interface const&){ return true; },
+                    std::function<bool(Device const& device)> leaveDeviceOpened = [](Device const&){ return true; }) -> std::vector<Device>
     {
       std::vector<Device> devices;
       try
@@ -135,9 +146,12 @@ public:
         deviceList->Refresh(100);
         for (auto deviceIt = deviceList->begin(); deviceIt != deviceList->end(); ++deviceIt)
         {
-          devices.emplace_back(Device{deviceIt->second});
+          devices.emplace_back(Device{deviceIt->second, leaveDeviceOpened});
         }
-        interface->Close();
+        if (!leaveInterfaceOpened(*this))
+        {
+          interface->Close();
+        }
       }
       catch (BGAPI2::Exceptions::ResourceInUseException& ex)
       {
@@ -151,9 +165,14 @@ public:
     std::string displayName;
     std::string tlType;
     std::vector<Device> devices;
+    BGAPI2::Interface* interface;
   };
+
 public:
-  System(BGAPI2::System* system)
+  System(BGAPI2::System* system,
+         std::function<bool(System const& system)> leaveSystemOpened = [](System const&){ return true; },
+         std::function<bool(Interface const& interface)> leaveInterfaceOpened = [](Interface const&){ return true; },
+         std::function<bool(Interface::Device const& device)> leaveDeviceOpened = [](Interface::Device const&){ return true; })
     : id{system->GetID()}
     , vendor{system->GetVendor()}
     , model{system->GetModel()}
@@ -162,11 +181,15 @@ public:
     , fileName{system->GetFileName()}
     , pathName{system->GetPathName()}
     , displayName{system->GetDisplayName()}
-    , interfaces{getInterfaces(system)}
+    , interfaces{getInterfaces(system, leaveSystemOpened, leaveInterfaceOpened, leaveDeviceOpened)}
+    , system{system}
   {
   }
 
-  static auto getInterfaces(BGAPI2::System* system) -> std::vector<Interface>
+  auto getInterfaces(BGAPI2::System* system,
+                     std::function<bool(System const& system)> leaveSystemOpened = [](System const&){ return true; },
+                     std::function<bool(Interface const& interface)> leaveInterfaceOpened = [](Interface const&){ return true; },
+                     std::function<bool(Interface::Device const& device)> leaveDeviceOpened = [](Interface::Device const&){ return true; }) -> std::vector<Interface>
   {
     std::vector<Interface> interfaces;
     try
@@ -179,7 +202,10 @@ public:
       {
         interfaces.emplace_back(Interface{interfaceIt->second});
       }
-      system->Close();
+      if (!leaveSystemOpened(*this))
+      {
+        system->Close();
+      }
     }
     catch (BGAPI2::Exceptions::ResourceInUseException& ex)
     {
@@ -198,18 +224,21 @@ public:
   std::string pathName;
   std::string displayName;
   std::vector<Interface> interfaces;
+  BGAPI2::System* system;
 };
 
 class SystemList
 {
 public:
-  SystemList()
+  SystemList(std::function<bool(System const& system)> leaveSystemOpened = [](System const&){ return true; },
+             std::function<bool(System::Interface const& interface)> leaveInterfaceOpened = [](System::Interface const&){ return true; },
+             std::function<bool(System::Interface::Device const& device)> leaveDeviceOpened = [](System::Interface::Device const&){ return true; })
     try : systemList{BGAPI2::SystemList::GetInstance()}
     {
       systemList->Refresh();
       for (auto sytemIt = systemList->begin(); sytemIt != systemList->end(); ++sytemIt)
       {
-          systems.emplace_back(System{sytemIt->second});
+          systems.emplace_back(System{sytemIt->second, leaveSystemOpened, leaveInterfaceOpened, leaveDeviceOpened});
       }
     }
     catch (BGAPI2::Exceptions::IException& ex)
@@ -222,6 +251,22 @@ public:
     {
       std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
     }
+
+  auto GetAllAvailableDevices() -> std::vector<System::Interface::Device>
+  {
+    std::vector<System::Interface::Device> devices;
+    for (auto const& system : systems)
+    {
+      for(auto const& interface : system.interfaces)
+      {
+        for(auto const& device : interface.devices)
+        {
+          devices.push_back(device);
+        }
+      }
+    }
+    return devices;
+  }
 
   ~SystemList()
   {
@@ -241,7 +286,15 @@ public:
   Impl()
   {
     auto systemList = SystemList();
-
+    auto devices = systemList.GetAllAvailableDevices();
+    std::cout << "All opened devices" << std::endl;
+    for (auto& device : devices)
+    {
+      if (device.isOpened)
+      {
+        std::cout << device.device << std::endl;
+      }
+    }
 #if 0
     BGAPI2::System * pSystem = NULL;
     BGAPI2::String sSystemID;

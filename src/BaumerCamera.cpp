@@ -117,7 +117,6 @@ public:
         deviceList->Refresh(100);
         for (auto deviceIt = deviceList->begin(); deviceIt != deviceList->end(); ++deviceIt)
         {
-          std::cout << "DeviceID: " << deviceIt->first << std::endl;
           devices.emplace_back(Device{deviceIt->second});
         }
         interface->Close();
@@ -160,7 +159,6 @@ public:
       interfaceList->Refresh(100);
       for (auto interfaceIt = interfaceList->begin(); interfaceIt != interfaceList->end(); ++interfaceIt)
       {
-        std::cout << "InterfaceID: " << interfaceIt->first << std::endl;
         interfaces.emplace_back(Interface{interfaceIt->second});
       }
       system->Close();
@@ -191,9 +189,9 @@ public:
     try : systemList{BGAPI2::SystemList::GetInstance()}
     {
       systemList->Refresh();
-      for (auto sysIterator = systemList->begin(); sysIterator != systemList->end(); sysIterator++)
+      for (auto sytemIt = systemList->begin(); sytemIt != systemList->end(); ++sytemIt)
       {
-
+          systems.emplace_back(System{sytemIt->second});
       }
     }
     catch (BGAPI2::Exceptions::IException& ex)

@@ -10,15 +10,223 @@
 
 namespace {
 
-} /// end namespace anonymous
+std::ostream& operator<<(std::ostream& out, BGAPI2::System* system)
+{
+  out << "ID: " << system->GetID() << '\n'
+      << "\tVendor: " << system->GetVendor() << '\n'
+      << "\tModel: " << system->GetModel() << '\n'
+      << "\tVersion: " << system->GetVersion() << '\n'
+      << "\tTLType: " << system->GetTLType() << '\n'
+      << "\tFileName: " << system->GetFileName() << '\n'
+      << "\tPathNeme: " << system->GetPathName() << '\n'
+      << "\tDisplayName: " << system->GetDisplayName() << std::endl;
+  return out;
+}
 
-using namespace BGAPI2;
+std::ostream& operator<<(std::ostream& out, BGAPI2::SystemList* systemList)
+{
+  for (auto systemListIt = systemList->begin(); systemListIt != systemList->end(); ++systemListIt)
+  {
+    out << "SystemId: " << systemListIt->first << ":\n" << systemListIt->second;
+  }
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, BGAPI2::Interface* interface)
+{
+  out << "ID: " << interface->GetID() << '\n'
+      << "\tTLType: " << interface->GetTLType() << '\n'
+      << "\tDisplayName: " << interface->GetDisplayName() << std::endl;
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, BGAPI2::InterfaceList* interfaceList)
+{
+  for (auto interfaceListIt = interfaceList->begin(); interfaceListIt != interfaceList->end(); ++interfaceListIt)
+  {
+    out << "SystemId: " << interfaceListIt->first << ":\n" << interfaceListIt->second;
+  }
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, BGAPI2::Device* device)
+{
+  out << "ID: " << device->GetID() << '\n'
+      << "\tVendor: " << device->GetVendor() << '\n'
+      << "\tModel: " << device->GetModel() << '\n'
+      << "\tSerialNumber: " << device->GetSerialNumber() << '\n'
+      << "\tTLType: " << device->GetTLType() << '\n'
+      << "\tDisplayName: " << device->GetDisplayName() << '\n'
+      << "\tAccessStatus: " << device->GetAccessStatus() << std::endl;
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, BGAPI2::DeviceList* deviceList)
+{
+  for (auto deviceListIt = deviceList->begin(); deviceListIt != deviceList->end(); ++deviceListIt)
+  {
+    out << "SystemId: " << deviceListIt->first << ":\n" << deviceListIt->second;
+  }
+  return out;
+}
+
+class System {
+public:
+
+  class Interface {
+  public:
+    class Device {
+    public:
+      Device(BGAPI2::Device* device)
+        : id{device->GetID()}
+        , vendor{device->GetVendor()}
+        , model{device->GetModel()}
+        , serialNumber{device->GetSerialNumber()}
+        , tlType{device->GetTLType()}
+        , displayName{device->GetDisplayName()}
+        , accessStatus{device->GetAccessStatus()}
+      {
+      }
+      std::string id;
+      std::string vendor;
+      std::string model;
+      std::string serialNumber;
+      std::string tlType;
+      std::string displayName;
+      std::string accessStatus;
+    };
+
+  public:
+    Interface(BGAPI2::Interface* interface)
+    : id{interface->GetID()}
+    , displayName{interface->GetDisplayName()}
+    , tlType{interface->GetTLType()}
+    , devices{getDevices(interface)}
+    {
+
+    }
+
+    static auto getDevices(BGAPI2::Interface* interface) -> std::vector<Device>
+    {
+      std::vector<Device> devices;
+      try
+      {
+        interface->Open();
+        std::cout << ">>> Interface Opened <<<\n" << interface << std::endl;
+        auto deviceList = interface->GetDevices();
+        deviceList->Refresh(100);
+        for (auto deviceIt = deviceList->begin(); deviceIt != deviceList->end(); ++deviceIt)
+        {
+          std::cout << "DeviceID: " << deviceIt->first << std::endl;
+          devices.emplace_back(Device{deviceIt->second});
+        }
+        interface->Close();
+      }
+      catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+      {
+        std::cout << " Interface " << interface->GetID() << " already opened " << std::endl;
+        std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+      }
+      return devices;
+    }
+
+    std::string id;
+    std::string displayName;
+    std::string tlType;
+    std::vector<Device> devices;
+  };
+public:
+  System(BGAPI2::System* system)
+    : id{system->GetID()}
+    , vendor{system->GetVendor()}
+    , model{system->GetModel()}
+    , version{system->GetVersion()}
+    , tlType{system->GetTLType()}
+    , fileName{system->GetFileName()}
+    , pathName{system->GetPathName()}
+    , displayName{system->GetDisplayName()}
+    , interfaces{getInterfaces(system)}
+  {
+  }
+
+  static auto getInterfaces(BGAPI2::System* system) -> std::vector<Interface>
+  {
+    std::vector<Interface> interfaces;
+    try
+    {
+      system->Open();
+      std::cout << ">>> System Opened <<<\n" << system << std::endl;
+      auto interfaceList = system->GetInterfaces();
+      interfaceList->Refresh(100);
+      for (auto interfaceIt = interfaceList->begin(); interfaceIt != interfaceList->end(); ++interfaceIt)
+      {
+        std::cout << "InterfaceID: " << interfaceIt->first << std::endl;
+        interfaces.emplace_back(Interface{interfaceIt->second});
+      }
+      system->Close();
+    }
+    catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+    {
+      std::cout << " System " << system->GetID() << " already opened " << std::endl;
+      std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+    }
+    return interfaces;
+  }
+
+  std::string id;
+  std::string vendor;
+  std::string model;
+  std::string version;
+  std::string tlType;
+  std::string fileName;
+  std::string pathName;
+  std::string displayName;
+  std::vector<Interface> interfaces;
+};
+
+class SystemList
+{
+public:
+  SystemList()
+    try : systemList{BGAPI2::SystemList::GetInstance()}
+    {
+      systemList->Refresh();
+      for (auto sysIterator = systemList->begin(); sysIterator != systemList->end(); sysIterator++)
+      {
+
+      }
+    }
+    catch (BGAPI2::Exceptions::IException& ex)
+    {
+      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
+      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
+      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
+    }
+    catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+    {
+      std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+    }
+
+  ~SystemList()
+  {
+    BGAPI2::SystemList::ReleaseInstance();
+  }
+
+  std::vector<System> systems;
+
+private:
+  BGAPI2::SystemList* systemList;
+};
+
+} /// end namespace anonymous
 
 class BaumerCamera::Impl {
 public:
   Impl()
   {
-    BGAPI2::SystemList *systemList = NULL;
+    auto systemList = SystemList();
+
+#if 0
     BGAPI2::System * pSystem = NULL;
     BGAPI2::String sSystemID;
 
@@ -31,7 +239,8 @@ public:
     BGAPI2::String sDeviceID;
 
     BGAPI2::DataStreamList *datastreamList = NULL;
-    BGAPI2::DataStream * pDataStream = NULL;
+    //BGAPI2::DataStream * pDataStream = NULL;
+    std::unique_ptr<BGAPI2::DataStream, void(*)(BGAPI2::DataStream*)> pDataStream{nullptr, [](BGAPI2::DataStream* _pDataStream) { _pDataStream->Close(); }};
     BGAPI2::String sDataStreamID;
 
     BGAPI2::BufferList *bufferList = NULL;
@@ -39,94 +248,45 @@ public:
     BGAPI2::String sBufferID;
     int returncode = 0;
 
-    std::cout << std::endl;
-    std::cout << "###############################################################" << std::endl;
-    std::cout << "# PROGRAMMER'S GUIDE Example 001_ImageCaptureMode_Polling.cpp #" << std::endl;
-    std::cout << "###############################################################" << std::endl;
-    std::cout << std::endl << std::endl;
-
-
-    std::cout << "SYSTEM LIST" << std::endl;
-    std::cout << "###########" << std::endl << std::endl;
-
-    //COUNTING AVAILABLE SYSTEMS (TL producers)
     try
     {
-      systemList = SystemList::GetInstance();
+      std::cout << "SYSTEM LIST" << std::endl;
+      std::cout << "###########" << std::endl << std::endl;
+
+      std::unique_ptr<BGAPI2::SystemList, void(*)(BGAPI2::SystemList*)> systemList{SystemList::GetInstance(), [](BGAPI2::SystemList*) { BGAPI2::SystemList::ReleaseInstance(); }};
       systemList->Refresh();
-      std::cout << "5.1.2   Detected systems:  " << systemList->size() << std::endl;
 
-      //SYSTEM DEVICE INFORMATION
-      for (SystemList::iterator sysIterator = systemList->begin(); sysIterator != systemList->end(); sysIterator++)
+      std::cout << systemList << std::endl;
+
+      BGAPI2::String sSystemID;
+      for (auto sysIterator = systemList->begin(); sysIterator != systemList->end(); sysIterator++)
       {
-        std::cout << "  5.2.1   System Name:     " << sysIterator->second->GetFileName() << std::endl;
-        std::cout << "          System Type:     " << sysIterator->second->GetTLType() << std::endl;
-        std::cout << "          System Version:  " << sysIterator->second->GetVersion() << std::endl;
-        std::cout << "          System PathName: " << sysIterator->second->GetPathName() << std::endl << std::endl;
-      }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
-
-
-    //OPEN THE FIRST SYSTEM IN THE LIST WITH A CAMERA CONNECTED
-    try
-    {
-      for (SystemList::iterator sysIterator = systemList->begin(); sysIterator != systemList->end(); sysIterator++)
-      {
-        std::cout << "SYSTEM" << std::endl;
-        std::cout << "######" << std::endl << std::endl;
-
         try
         {
           sysIterator->second->Open();
-          std::cout << "5.1.3   Open next system " << std::endl;
-          std::cout << "  5.2.1   System Name:     " << sysIterator->second->GetFileName() << std::endl;
-          std::cout << "          System Type:     " << sysIterator->second->GetTLType() << std::endl;
-          std::cout << "          System Version:  " << sysIterator->second->GetVersion() << std::endl;
-          std::cout << "          System PathName: " << sysIterator->second->GetPathName() << std::endl << std::endl;
+          std::cout << ">>> Opened <<<\n" << sysIterator->second << std::endl;
           sSystemID = sysIterator->first;
+
           std::cout << "        Opened system - NodeList Information " << std::endl;
           std::cout << "          GenTL Version:   " << sysIterator->second->GetNode("GenTLVersionMajor")->GetValue() << "." << sysIterator->second->GetNode("GenTLVersionMinor")->GetValue() << std::endl << std::endl;
 
           std::cout << "INTERFACE LIST" << std::endl;
           std::cout << "##############" << std::endl << std::endl;
 
-          try
-          {
-            interfaceList = sysIterator->second->GetInterfaces();
-            //COUNT AVAILABLE INTERFACES
-            interfaceList->Refresh(100); // timeout of 100 msec
-            std::cout << "5.1.4   Detected interfaces: " << interfaceList->size() << std::endl;
+          auto interfaceList = sysIterator->second->GetInterfaces();
+          interfaceList->Refresh(100); // timeout of 100 msec
+          std::cout << "5.1.4   Detected interfaces: " << interfaceList->size() << std::endl;
 
-            //INTERFACE INFORMATION
-            for (InterfaceList::iterator ifIterator = interfaceList->begin(); ifIterator != interfaceList->end(); ifIterator++)
-            {
-              std::cout << "  5.2.2   Interface ID:      " << ifIterator->first << std::endl;
-              std::cout << "          Interface Type:    " << ifIterator->second->GetTLType() << std::endl;
-              std::cout << "          Interface Name:    " << ifIterator->second->GetDisplayName() << std::endl << std::endl;
-            }
-          }
-          catch (BGAPI2::Exceptions::IException& ex)
+          for (InterfaceList::iterator ifIterator = interfaceList->begin(); ifIterator != interfaceList->end(); ifIterator++)
           {
-            returncode = (returncode == 0) ? 1 : returncode;
-            std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-            std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-            std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
+            std::cout << "  5.2.2   Interface ID:      " << ifIterator->first << std::endl;
+            std::cout << "          Interface Type:    " << ifIterator->second->GetTLType() << std::endl;
+            std::cout << "          Interface Name:    " << ifIterator->second->GetDisplayName() << std::endl << std::endl;
           }
-
 
           std::cout << "INTERFACE" << std::endl;
           std::cout << "#########" << std::endl << std::endl;
 
-          //OPEN THE NEXT INTERFACE IN THE LIST
-          try
-          {
             for (InterfaceList::iterator ifIterator = interfaceList->begin(); ifIterator != interfaceList->end(); ifIterator++)
             {
               try
@@ -169,14 +329,7 @@ public:
                 std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
               }
             }
-          }
-          catch (BGAPI2::Exceptions::IException& ex)
-          {
-            returncode = (returncode == 0) ? 1 : returncode;
-            std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-            std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-            std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-          }
+
 
 
           //if a camera is connected to the system interface then leave the system loop
@@ -192,51 +345,32 @@ public:
           std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
         }
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    if ( sSystemID == "" )
-    {
-      std::cout << " No System found " << std::endl;
-      std::cout << std::endl << "End" << std::endl << "Input any number to close the program:";
-      int endKey = 0;
-      std::cin >> endKey;
-      BGAPI2::SystemList::ReleaseInstance();
-      return;
-    }
-    else
-    {
-      pSystem = (*systemList)[sSystemID];
-    }
+      if ( sSystemID == "" )
+      {
+        //BGAPI2::SystemList::ReleaseInstance();
+        return;
+      }
+      else
+      {
+        pSystem = (*systemList)[sSystemID];
+      }
 
+      if (sInterfaceID == "")
+      {
+        std::cout << " No camera found " << sInterfaceID << std::endl;
+        pSystem->Close();
+        //BGAPI2::SystemList::ReleaseInstance();
+        return;
+      }
+      else
+      {
+        pInterface = (*interfaceList)[sInterfaceID];
+      }
 
-    if (sInterfaceID == "")
-    {
-      std::cout << " No camera found " << sInterfaceID << std::endl;
-      std::cout << std::endl << "End" << std::endl << "Input any number to close the program:";
-      int endKey = 0;
-      std::cin >> endKey;
-      pSystem->Close();
-      BGAPI2::SystemList::ReleaseInstance();
-      return;
-    }
-    else
-    {
-      pInterface = (*interfaceList)[sInterfaceID];
-    }
+      std::cout << "DEVICE LIST" << std::endl;
+      std::cout << "###########" << std::endl << std::endl;
 
-
-    std::cout << "DEVICE LIST" << std::endl;
-    std::cout << "###########" << std::endl << std::endl;
-
-    try
-    {
       //COUNTING AVAILABLE CAMERAS
       deviceList = pInterface->GetDevices();
       deviceList->Refresh(100);
@@ -253,22 +387,11 @@ public:
         std::cout << "          Device AccessStatus:    " << devIterator->second->GetAccessStatus() << std::endl;
         std::cout << "          Device UserID:          " << devIterator->second->GetDisplayName() << std::endl << std::endl;
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
+      std::cout << "DEVICE" << std::endl;
+      std::cout << "######" << std::endl << std::endl;
 
-    std::cout << "DEVICE" << std::endl;
-    std::cout << "######" << std::endl << std::endl;
-
-    //OPEN THE FIRST CAMERA IN THE LIST
-    try
-    {
+      //OPEN THE FIRST CAMERA IN THE LIST
       for (DeviceList::iterator devIterator = deviceList->begin(); devIterator != deviceList->end(); devIterator++)
       {
         try
@@ -328,56 +451,31 @@ public:
           std::cout << " AccessDeniedException " << ex.GetErrorDescription() << std::endl;
         }
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    if (sDeviceID == "")
-    {
-      std::cout << " No Device found " << sDeviceID << std::endl;
-      std::cout << std::endl << "End" << std::endl << "Input any number to close the program:";
-      int endKey = 0;
-      std::cin >> endKey;
-      pInterface->Close();
-      pSystem->Close();
-      BGAPI2::SystemList::ReleaseInstance();
-      return;
-    }
-    else
-    {
-      pDevice = (*deviceList)[sDeviceID];
-    }
-
-
-    std::cout << "DEVICE PARAMETER SETUP" << std::endl;
-    std::cout << "######################" << std::endl << std::endl;
-
-    try
-    {
+      if (sDeviceID == "")
+      {
+        std::cout << " No Device found " << sDeviceID << std::endl;
+        std::cout << std::endl << "End" << std::endl << "Input any number to close the program:";
+        int endKey = 0;
+        std::cin >> endKey;
+        pInterface->Close();
+        pSystem->Close();
+        //BGAPI2::SystemList::ReleaseInstance();
+        return;
+      }
+      else
+      {
+        pDevice = (*deviceList)[sDeviceID];
+      }
+      std::cout << "DEVICE PARAMETER SETUP" << std::endl;
+      std::cout << "######################" << std::endl << std::endl;
       //SET TRIGGER MODE OFF (FreeRun)
       pDevice->GetRemoteNode("TriggerMode")->SetString("Off");
       std::cout << "         TriggerMode:             " << pDevice->GetRemoteNode("TriggerMode")->GetValue() << std::endl;
       std::cout << std::endl;
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-
-    std::cout << "DATA STREAM LIST" << std::endl;
-    std::cout << "################" << std::endl << std::endl;
-
-    try
-    {
+      std::cout << "DATA STREAM LIST" << std::endl;
+      std::cout << "################" << std::endl << std::endl;
       //COUNTING AVAILABLE DATASTREAMS
       datastreamList = pDevice->GetDataStreams();
       datastreamList->Refresh();
@@ -388,22 +486,11 @@ public:
       {
         std::cout << "  5.2.4   DataStream ID:          " << dstIterator->first << std::endl << std::endl;
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
+      std::cout << "DATA STREAM" << std::endl;
+      std::cout << "###########" << std::endl << std::endl;
 
-    std::cout << "DATA STREAM" << std::endl;
-    std::cout << "###########" << std::endl << std::endl;
-
-    //OPEN THE FIRST DATASTREAM IN THE LIST
-    try
-    {
+      //OPEN THE FIRST DATASTREAM IN THE LIST
       for (DataStreamList::iterator dstIterator = datastreamList->begin(); dstIterator != datastreamList->end(); dstIterator++)
       {
         std::cout << "5.1.9   Open first datastream " << std::endl;
@@ -419,38 +506,24 @@ public:
         std::cout << "  " << std::endl;
         break;
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    if (sDataStreamID == "")
-    {
-      std::cout << " No DataStream found " << sDataStreamID << std::endl;
-      std::cout << std::endl << "End" << std::endl << "Input any number to close the program:";
-      int endKey = 0;
-      std::cin >> endKey;
-      pDevice->Close();
-      pInterface->Close();
-      pSystem->Close();
-      BGAPI2::SystemList::ReleaseInstance();
-      return;
-    }
-    else
-    {
-      pDataStream = (*datastreamList)[sDataStreamID];
-    }
+      if (sDataStreamID == "")
+      {
+        std::cout << " No DataStream found " << sDataStreamID << std::endl;
+        pDevice->Close();
+        pInterface->Close();
+        pSystem->Close();
+        //BGAPI2::SystemList::ReleaseInstance();
+        return;
+      }
+      else
+      {
+        pDataStream.reset((*datastreamList)[sDataStreamID]);
+      }
 
+      std::cout << "BUFFER LIST" << std::endl;
+      std::cout << "###########" << std::endl << std::endl;
 
-    std::cout << "BUFFER LIST" << std::endl;
-    std::cout << "###########" << std::endl << std::endl;
-
-    try
-    {
       //BufferList
       bufferList = pDataStream->GetBufferList();
 
@@ -461,71 +534,30 @@ public:
         bufferList->Add(pBuffer);
       }
       std::cout << "5.1.10   Announced buffers:       " << bufferList->GetAnnouncedCount() << " using " << pBuffer->GetMemSize() * bufferList->GetAnnouncedCount() << " [bytes]" << std::endl;
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    try
-    {
       for (BufferList::iterator bufIterator = bufferList->begin(); bufIterator != bufferList->end(); bufIterator++)
       {
         bufIterator->second->QueueBuffer();
       }
       std::cout << "5.1.11   Queued buffers:          " << bufferList->GetQueuedCount() << std::endl;
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
-    std::cout << " " << std::endl;
 
-    std::cout << "CAMERA START" << std::endl;
-    std::cout << "############" << std::endl << std::endl;
+      std::cout << " " << std::endl;
 
-    //START DataStream acquisition
-    try
-    {
+      std::cout << "CAMERA START" << std::endl;
+      std::cout << "############" << std::endl << std::endl;
+      //START DataStream acquisition
       pDataStream->StartAcquisitionContinuous();
       std::cout << "5.1.12   DataStream started " << std::endl;
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    //START CAMERA
-    try
-    {
+      //START CAMERA
       std::cout << "5.1.12   " << pDevice->GetModel() << " started " << std::endl;
       pDevice->GetRemoteNode("AcquisitionStart")->Execute();
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    //CAPTURE 12 IMAGES
-    std::cout << " " << std::endl;
-    std::cout << "CAPTURE 12 IMAGES BY IMAGE POLLING" << std::endl;
-    std::cout << "##################################" << std::endl << std::endl;
-
-    BGAPI2::Buffer * pBufferFilled = NULL;
-    try
-    {
+      //CAPTURE 12 IMAGES
+      std::cout << " " << std::endl;
+      std::cout << "CAPTURE 12 IMAGES BY IMAGE POLLING" << std::endl;
+      std::cout << "##################################" << std::endl << std::endl;
+      BGAPI2::Buffer * pBufferFilled = NULL;
       for(int i = 0; i < 10000; i++)
       {
         pBufferFilled = pDataStream->GetFilledBuffer(1000); //timeout 1000 msec
@@ -549,23 +581,12 @@ public:
           pBufferFilled->QueueBuffer();
         }
       }
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
-    std::cout << " " << std::endl;
 
+      std::cout << " " << std::endl;
 
-    std::cout << "CAMERA STOP" << std::endl;
-    std::cout << "###########" << std::endl << std::endl;
-
-    //STOP CAMERA
-    try
-    {
+      std::cout << "CAMERA STOP" << std::endl;
+      std::cout << "###########" << std::endl << std::endl;
+      //STOP CAMERA
       //SEARCH FOR 'AcquisitionAbort'
       if(pDevice->GetRemoteNodeList()->GetNodePresent("AcquisitionAbort"))
       {
@@ -594,18 +615,8 @@ public:
         std::cout << "         GevSCPD (PacketDelay):          " << pDevice->GetRemoteNode("GevSCPD")->GetInt() << " [tics]" << std::endl;
       }
       std::cout << std::endl;
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
 
-    //STOP DataStream acquisition
-    try
-    {
+      //STOP DataStream acquisition
       if( pDataStream->GetTLType() == "GEV" )
       {
         //DataStream Statistic
@@ -640,24 +651,15 @@ public:
       pDataStream->StopAcquisition();
       std::cout << "5.1.12   DataStream stopped " << std::endl;
       bufferList->DiscardAllBuffers();
-    }
-    catch (BGAPI2::Exceptions::IException& ex)
-    {
-      returncode = (returncode == 0) ? 1 : returncode;
-      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
-      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
-      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
-    }
-    std::cout << std::endl;
 
+      std::cout << std::endl;
 
-    std::cout << "RELEASE" << std::endl;
-    std::cout << "#######" << std::endl << std::endl;
+      std::cout << "RELEASE" << std::endl;
+      std::cout << "#######" << std::endl << std::endl;
 
-    //Release buffers
-    std::cout << "5.1.13   Releasing the resources " << std::endl;
-    try
-    {
+      //Release buffers
+      std::cout << "5.1.13   Releasing the resources " << std::endl;
+
       while( bufferList->size() > 0)
       {
         pBuffer = bufferList->begin()->second;
@@ -670,15 +672,15 @@ public:
       pDevice->Close();
       pInterface->Close();
       pSystem->Close();
-      BGAPI2::SystemList::ReleaseInstance();
+      //BGAPI2::SystemList::ReleaseInstance();
     }
     catch (BGAPI2::Exceptions::IException& ex)
     {
-      returncode = (returncode == 0) ? 1 : returncode;
       std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
       std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
       std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
     }
+#endif
   }
 
   ~Impl()

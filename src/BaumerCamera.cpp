@@ -83,21 +83,10 @@ public:
           , tlType{dataStream->GetTLType()}
           , dataStream{dataStream}
         {
-          try
-          {
-            dataStream->Open();
-            isOpened = true;
-          }
-          catch (BGAPI2::Exceptions::ResourceInUseException& ex)
-          {
-            std::cout << " Device  " << dataStream->GetID() << " already opened " << std::endl;
-            std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
-          }
         }
         std::string id;
         std::string tlType;
         BGAPI2::DataStream* dataStream;
-        bool isOpened{};
       };
 
     public:
@@ -121,7 +110,16 @@ public:
           dataStreamList->Refresh();
           for (auto dataStreamIt = dataStreamList->begin(); dataStreamIt != dataStreamList->end(); ++dataStreamIt)
           {
-            dataStreams.emplace_back(DataStream{dataStreamIt->second});
+            try
+            {
+              dataStreamIt->second->Open();
+              dataStreams.emplace_back(DataStream{dataStreamIt->second});
+            }
+            catch (BGAPI2::Exceptions::ResourceInUseException& ex)
+            {
+              std::cout << " Device  " << dataStreamIt->first << " already opened " << std::endl;
+              std::cout << " ResourceInUseException: " << ex.GetErrorDescription() << std::endl;
+            }
           }
           if (!leaveDeviceOpened(*this))
           {
@@ -366,8 +364,6 @@ public:
         std::cout << device.device << std::endl;
         for (auto& dataStream : device.dataStreams)
         {
-          if (dataStream.isOpened)
-          {
             auto bufferList = dataStream.dataStream->GetBufferList();
             for(auto i = 0; i < 4; ++i)
             {
@@ -425,7 +421,6 @@ public:
               bufferList->RevokeBuffer(pBuffer);
               delete pBuffer;
             }
-          }
         }
       }
     }

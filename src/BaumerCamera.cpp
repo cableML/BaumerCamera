@@ -83,6 +83,9 @@ public:
           , tlType{dataStream->GetTLType()}
           , dataStream{dataStream}
         {
+          std::cout << "id: " << id
+                    << "tlType: " << tlType
+                    << std::endl;
         }
         std::string id;
         std::string tlType;

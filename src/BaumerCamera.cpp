@@ -187,10 +187,19 @@ public:
                   << " [" << unit << "]" << std::endl;
       }
 
-      void SetGain()
+      void SetGain(double gain)
       {
-        auto configFile = std::ofstream("baumer.cfg");
-        configFile << device->GetRemoteConfigurationFile() << std::endl;
+        device->GetRemoteNode("Gain")->SetDouble(gain);
+      }
+
+      auto GetGain() -> double
+      {
+        return device->GetRemoteNode("Gain")->GetDouble();
+      }
+
+      auto GetAllSettings() -> std::string
+      {
+        return std::string(device->GetRemoteConfigurationFile());
       }
 
       std::string id;
@@ -395,12 +404,13 @@ public:
             dataStream.dataStream->StartAcquisitionContinuous();
             device.device->GetRemoteNode("AcquisitionStart")->Execute();
 
-            device.SetGain();
-#if 0
+#if 1
             for(int i = 0; i < 1000; i++)
             {
-              auto const k = ((i % 10) > 5) ? 10000 : 20000;
-              device.SetExposureTime(k);
+//              auto const k = ((i % 10) > 5) ? 10000 : 20000;
+//              device.SetExposureTime(k);
+              auto k = ((i % 10) > 5) ? 3 : 6;
+              device.SetGain(k);
               TAKEN_TIME();
               auto pBufferFilled = dataStream.dataStream->GetFilledBuffer(1000);
               if(pBufferFilled == nullptr)

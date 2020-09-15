@@ -145,17 +145,20 @@ public:
 
       void SetTriggerMode(bool on)
       {
+        TAKEN_TIME();
         device->GetRemoteNode("TriggerMode")->SetString(on ? "On" : "Off");
         std::cout << "TriggerMode: " << device->GetRemoteNode("TriggerMode")->GetValue() << std::endl;
       }
 
       bool GetTriggerMode()
       {
+        TAKEN_TIME();
         return device->GetRemoteNode("TriggerMode")->GetValue() == "On" ? true : false;
       }
 
       auto GetExposureTime() -> std::pair<double, std::string>
       {
+        TAKEN_TIME();
         BGAPI2::String sExposureNodeName = (device->GetRemoteNodeList()->GetNodePresent("ExposureTime"))
                                             ? "ExposureTime"
                                             : (device->GetRemoteNodeList()->GetNodePresent("ExposureTimeAbs"))
@@ -170,6 +173,7 @@ public:
 
       void SetExposureTime(double exposureTime)
       {
+        TAKEN_TIME();
         BGAPI2::String sExposureNodeName = (device->GetRemoteNodeList()->GetNodePresent("ExposureTime"))
                                            ? "ExposureTime"
                                            : (device->GetRemoteNodeList()->GetNodePresent("ExposureTimeAbs"))
@@ -384,8 +388,10 @@ public:
             dataStream.dataStream->StartAcquisitionContinuous();
             device.device->GetRemoteNode("AcquisitionStart")->Execute();
 
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < 1000; i++)
             {
+              auto k = i < 500 ? 100 : -100;
+              device.SetExposureTime(device.GetExposureTime().first + k);
               TAKEN_TIME();
               auto pBufferFilled = dataStream.dataStream->GetFilledBuffer(1000);
               if(pBufferFilled == nullptr)
@@ -449,6 +455,161 @@ BaumerCamera& BaumerCamera::operator=(BaumerCamera&&) noexcept = default;
 BaumerCamera::BaumerCamera()
   : _pImpl{std::make_unique<Impl>()}
 {
+}
+
+void printNodeRecursive( BGAPI2::Node* pNode, int level)
+{
+  int white_spaces = level * 7 + 1;
+  for(int i = 0; i < white_spaces; i++) std::cout << " ";
+
+  if(pNode->GetInterface() == "ICategory")
+  {
+    std::cout << "[" << std::left << std::setw(12) << pNode->GetInterface() << std::right << "]";
+    std::cout << " " << pNode->GetName() << std::endl;
+    for( bo_uint64 j = 0; j < pNode->GetNodeTree()->GetNodeCount(); j++)
+    {
+      BGAPI2::Node * nSubNode = pNode->GetNodeTree()->GetNodeByIndex(j);
+      printNodeRecursive( nSubNode, level+1);
+    }
+  }
+  else
+  {
+    try
+    {
+      std::cout << "[" << std::left << std::setw(12) << pNode->GetInterface() << std::right << "]";
+      std::cout << " " << std::left << std::setw(44) << pNode->GetName() << std::right;
+      if( (pNode->IsReadable()) && (pNode->GetVisibility() != "Invisible") )
+      {
+        if(pNode->GetInterface() == "IBoolean")
+        {
+          std::cout << ": " << pNode->GetValue();
+        }
+        if(pNode->GetInterface() == "IEnumeration")
+        {
+          std::cout << ": " << pNode->GetValue();
+        }
+        if(pNode->GetInterface() == "IFloat")
+        {
+          std::cout << ": " << pNode->GetValue();
+        }
+        if(pNode->GetInterface() == "IInteger")
+        {
+          std::cout << ": " << pNode->GetValue();
+        }
+        if(pNode->GetInterface() == "IString")
+        {
+          std::cout << ": " << pNode->GetValue();
+        }
+      }
+    }
+    catch (BGAPI2::Exceptions::IException& ex)
+    {
+      std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
+      std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
+      std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
+    }
+  }
+  std::cout << " " << std::endl;
+  return;
+}
+
+void printDeviceRemoteNodeInformation(BGAPI2::Device * pDevice, BGAPI2::String sNodeName)
+{
+  try
+  {
+    std::cout << "printDeviceRemoteNodeInformation: '" << sNodeName << "'" << std::endl;
+    std::cout << " Node Interface:           " << pDevice->GetRemoteNode(sNodeName)->GetInterface() << std::endl;
+    std::cout << " Node Name:                " << pDevice->GetRemoteNode(sNodeName)->GetName() << std::endl;
+    std::cout << " Node Display Name:        " << pDevice->GetRemoteNode(sNodeName)->GetDisplayName() << std::endl;
+    std::cout << " Node Description:         " << pDevice->GetRemoteNode(sNodeName)->GetDescription() << std::endl;
+    std::cout << " Node Tool Tip:            " << pDevice->GetRemoteNode(sNodeName)->GetToolTip() << std::endl;
+    std::cout << " Node Visibility:          " << pDevice->GetRemoteNode(sNodeName)->GetVisibility() << std::endl;
+    std::cout << " Node Is Implemented:      " << pDevice->GetRemoteNode(sNodeName)->GetImplemented() << std::endl;
+    std::cout << " Node Is Available:        " << pDevice->GetRemoteNode(sNodeName)->GetAvailable() << std::endl;
+    std::cout << " Node Current Access Mode: " << pDevice->GetRemoteNode(sNodeName)->GetCurrentAccessMode() << std::endl;
+    std::cout << " Node Is Selector:         " << pDevice->GetRemoteNode(sNodeName)->IsSelector() << std::endl;
+    if( (pDevice->GetRemoteNode(sNodeName)->IsReadable() == true) &&
+        (pDevice->GetRemoteNode(sNodeName)->GetVisibility() != "Invisible"))
+    {
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IBoolean")
+      {
+        std::cout << " Node Value:               " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "ICommand")
+      {
+        std::cout << " Node Is Done:             " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IEnumeration")
+      {
+        std::cout << " Node Value:               " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+        std::cout << " Node Value (Integer):     " << pDevice->GetRemoteNode(sNodeName)->GetInt() << std::endl;
+        std::cout << " Node Enumeration Count:   " << pDevice->GetRemoteNode(sNodeName)->GetEnumNodeList()->GetNodeCount() << std::endl;
+        for( bo_uint64 l=0; l < pDevice->GetRemoteNode(sNodeName)->GetEnumNodeList()->GetNodeCount(); l++)
+        {
+          BGAPI2::Node * nEnumNode = pDevice->GetRemoteNode(sNodeName)->GetEnumNodeList()->GetNodeByIndex(l);
+          if( nEnumNode->IsReadable() == true )
+          {
+            std::cout << "                     [" << std::setw(2) << l << "]: " << pDevice->GetRemoteNode(sNodeName)->GetEnumNodeList()->GetNodeByIndex(l)->GetValue() << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IFloat")
+      {
+        std::cout << " Node Value:               " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+        std::cout << " Node Double:              " << pDevice->GetRemoteNode(sNodeName)->GetDouble() << std::endl;
+        std::cout << " Node DoubleMin:           " << pDevice->GetRemoteNode(sNodeName)->GetDoubleMin() << std::endl;
+        std::cout << " Node DoubleMax:           " << pDevice->GetRemoteNode(sNodeName)->GetDoubleMax() << std::endl;
+        if(pDevice->GetRemoteNode(sNodeName)->HasUnit() == true)
+        {
+          std::cout << " Node Unit:                " << pDevice->GetRemoteNode(sNodeName)->GetUnit() << std::endl;
+        }
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IInteger")
+      {
+        std::cout << " Node Value:               " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+        std::cout << " Node Int:                 " << pDevice->GetRemoteNode(sNodeName)->GetInt() << std::endl;
+        std::cout << " Node IntMin:              " << pDevice->GetRemoteNode(sNodeName)->GetIntMin() << std::endl;
+        std::cout << " Node IntMax:              " << pDevice->GetRemoteNode(sNodeName)->GetIntMax() << std::endl;
+        std::cout << " Node IntInc:              " << pDevice->GetRemoteNode(sNodeName)->GetIntInc() << std::endl;
+        if(pDevice->GetRemoteNode(sNodeName)->HasUnit() == true)
+        {
+          std::cout << " Node Unit:                " << pDevice->GetRemoteNode(sNodeName)->GetUnit() << std::endl;
+        }
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IString")
+      {
+        std::cout << " Node Value:               " << pDevice->GetRemoteNode(sNodeName)->GetValue() << std::endl;
+        std::cout << " Node String:              " << pDevice->GetRemoteNode(sNodeName)->GetString() << std::endl;
+        std::cout << " Node MaxStringLength:     " << pDevice->GetRemoteNode(sNodeName)->GetMaxStringLength() << std::endl;
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->GetInterface() == "IRegister")
+      {
+        std::cout << " Node Has Unit:            " << pDevice->GetRemoteNode(sNodeName)->HasUnit() << std::endl;
+      }
+      if(pDevice->GetRemoteNode(sNodeName)->IsSelector() == true)
+      {
+        std::cout << " SelectedNodeList Count:   " << pDevice->GetRemoteNode(sNodeName)->GetSelectedNodeList()->GetNodeCount() << std::endl;
+        for( bo_uint64 l=0; l < pDevice->GetRemoteNode(sNodeName)->GetSelectedNodeList()->GetNodeCount(); l++)
+        {
+          BGAPI2::Node * nSelectedNode = pDevice->GetRemoteNode(sNodeName)->GetSelectedNodeList()->GetNodeByIndex(l);
+          if( (nSelectedNode->IsReadable() == true) && (nSelectedNode->GetVisibility() != "Invisible") )
+          {
+            std::cout << "                           " << pDevice->GetRemoteNode(sNodeName)->GetSelectedNodeList()->GetNodeByIndex(l)->GetName() << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+    }
+    std::cout << std::endl;
+  }
+  catch (BGAPI2::Exceptions::IException& ex)
+  {
+    std::cout << "ExceptionType:    " << ex.GetType() << std::endl;
+    std::cout << "ErrorDescription: " << ex.GetErrorDescription() << std::endl;
+    std::cout << "in function:      " << ex.GetFunctionName() << std::endl;
+  }
+  return;
 }
 
 int example()

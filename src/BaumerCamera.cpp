@@ -360,7 +360,7 @@ class BaumerCamera::Impl {
 public:
   Impl()
   {
-    example();
+    //example();
 #if 0
     auto systemList = SystemList();
     auto devices = systemList.GetAllAvailableDevices();

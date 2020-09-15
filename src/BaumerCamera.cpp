@@ -186,6 +186,11 @@ public:
                   << " [" << unit << "]" << std::endl;
       }
 
+      void SetGain()
+      {
+        std::cout << device->GetRemoteConfigurationFile() << std::endl;
+      }
+
       std::string id;
       std::string vendor;
       std::string model;
@@ -388,6 +393,7 @@ public:
             dataStream.dataStream->StartAcquisitionContinuous();
             device.device->GetRemoteNode("AcquisitionStart")->Execute();
 
+            device.SetGain();
             for(int i = 0; i < 1000; i++)
             {
               auto const k = ((i % 10) > 5) ? 10000 : 20000;

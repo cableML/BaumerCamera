@@ -189,16 +189,19 @@ public:
 
       void SetGain(double gain)
       {
+        TAKEN_TIME();
         device->GetRemoteNode("Gain")->SetDouble(gain);
       }
 
       auto GetGain() -> double
       {
+        TAKEN_TIME();
         return device->GetRemoteNode("Gain")->GetDouble();
       }
 
       auto GetAllSettings() -> std::string
       {
+        TAKEN_TIME();
         return std::string(device->GetRemoteConfigurationFile());
       }
 

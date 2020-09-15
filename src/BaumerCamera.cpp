@@ -390,7 +390,7 @@ public:
 
             for(int i = 0; i < 1000; i++)
             {
-              auto const k = ((i / 10) > 5) ? 10000 : 20000;
+              auto const k = ((i % 10) > 5) ? 10000 : 20000;
               device.SetExposureTime(k);
               TAKEN_TIME();
               auto pBufferFilled = dataStream.dataStream->GetFilledBuffer(1000);

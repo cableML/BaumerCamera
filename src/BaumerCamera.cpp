@@ -388,9 +388,10 @@ public:
             dataStream.dataStream->StartAcquisitionContinuous();
             device.device->GetRemoteNode("AcquisitionStart")->Execute();
 
+            auto k = 10000;
             for(int i = 0; i < 1000; i++)
             {
-              auto k = i < 500 ? 100 : -100;
+              k = (((i / 100) % 2) == 0) ? -10000 : 10000;
               device.SetExposureTime(device.GetExposureTime().first + k);
               TAKEN_TIME();
               auto pBufferFilled = dataStream.dataStream->GetFilledBuffer(1000);

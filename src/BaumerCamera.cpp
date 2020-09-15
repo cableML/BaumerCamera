@@ -7,6 +7,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include "TimeMeasuring.hpp"
 
 namespace {
@@ -188,7 +189,8 @@ public:
 
       void SetGain()
       {
-        std::cout << device->GetRemoteConfigurationFile() << std::endl;
+        auto configFile = std::ofstream("baumer.cfg");
+        configFile << device->GetRemoteConfigurationFile() << std::endl;
       }
 
       std::string id;
@@ -394,6 +396,7 @@ public:
             device.device->GetRemoteNode("AcquisitionStart")->Execute();
 
             device.SetGain();
+#if 0
             for(int i = 0; i < 1000; i++)
             {
               auto const k = ((i % 10) > 5) ? 10000 : 20000;
@@ -419,7 +422,7 @@ public:
                 pBufferFilled->QueueBuffer();
               }
             }
-
+#endif
             if(device.device->GetRemoteNodeList()->GetNodePresent("AcquisitionAbort"))
             {
               device.device->GetRemoteNode("AcquisitionAbort")->Execute();

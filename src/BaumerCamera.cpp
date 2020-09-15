@@ -361,7 +361,7 @@ public:
   Impl()
   {
     //example();
-#if 0
+#if 1
     auto systemList = SystemList();
     auto devices = systemList.GetAllAvailableDevices();
     std::cout << "All opened devices" << std::endl;

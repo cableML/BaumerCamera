@@ -9,6 +9,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <thread>
 
 namespace {
 #define BEGIN_SAFE_CALL() try \
@@ -114,6 +115,7 @@ public:
          }
          _dataStream->StartAcquisitionContinuous();
          _device->GetRemoteNode("AcquisitionStart")->Execute();
+         std::this_thread::sleep_for(std::chrono::seconds(1));
       END_SAFE_CALL()
    }
 
@@ -186,7 +188,7 @@ public:
       END_SAFE_CALL()
    }
 
-   void SetExposureTime()
+   void SetExposureTime(double exposureTime)
    {
       BEGIN_SAFE_CALL()
          BGAPI2::String sExposureNodeName = "";
@@ -198,10 +200,36 @@ public:
          {
             sExposureNodeName = "ExposureTimeAbs";
          }
+         auto exposureTimeValue = _device->GetRemoteNode(sExposureNodeName)->GetDouble();
          std::cout << "ExposureTime: " << std::fixed << std::setprecision(0)
-                   << _device->GetRemoteNode(sExposureNodeName)->GetDouble()
+                   << exposureTimeValue
                    << " [" << _device->GetRemoteNode(sExposureNodeName)->GetUnit() << "]" << std::endl;
+         _device->GetRemoteNode(sExposureNodeName)->SetDouble(exposureTime);
       END_SAFE_CALL()
+   }
+
+   void SetGain(double gain)
+   {
+//       Gain
+//       Gain Auto
+//       Gain Auto Max Value
+//       Gain Auto Min Value
+//       Gain Selector
+//          auto const allOptionsCount = _device->GetRemoteNodeList()->GetNodeCount();
+//          for (auto i = 0; i < allOptionsCount; ++i)
+//          {
+//              auto currentNode = _device->GetRemoteNodeList()->GetNodeByIndex(i);
+//              std::cout << currentNode->GetName() << "\t" << currentNode->GetDisplayName() << std::endl;
+//          }
+       BEGIN_SAFE_CALL()
+           if (_device->GetRemoteNodeList()->GetNodePresent("Gain"))
+           {
+               auto gainValue = _device->GetRemoteNodeList()->GetNode("Gain")->GetDouble();
+               std::cout << "Gain: " << gainValue
+                         << " [" << _device->GetRemoteNode(gainValue)->GetUnit() << "]" << std::endl;
+               _device->GetRemoteNodeList()->GetNode("Gain")->SetDouble(gain);
+           }
+       END_SAFE_CALL()
    }
 
    ~Impl()
@@ -948,7 +976,12 @@ bool BaumerCamera::DataStream::GetFrame(cv::Mat& frame)
    return _pImpl->GetFrame(frame);
 }
 
-void BaumerCamera::DataStream::SetExposureTime()
+void BaumerCamera::DataStream::SetExposureTime(double exposureTime)
 {
-   _pImpl->SetExposureTime();
+   _pImpl->SetExposureTime(exposureTime);
+}
+
+void BaumerCamera::DataStream::SetGain(double gain)
+{
+    _pImpl->SetGain(gain);
 }

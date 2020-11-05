@@ -24,7 +24,8 @@ public:
     void StartCamera();
     void StopCamera();
     bool GetFrame(cv::Mat& frame);
-    void SetExposureTime();
+    void SetExposureTime(double exposureTime);
+    void SetGain(double gain);
 
   private:
     std::unique_ptr<Impl> _pImpl;

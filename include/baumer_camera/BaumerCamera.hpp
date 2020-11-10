@@ -4,18 +4,32 @@
 
 #include <opencv2/core/mat.hpp>
 
+namespace baumer {
+
+class DataStream;
+
 class BaumerCamera
 {
-private:
-   class Impl;
+public:
+    BaumerCamera();
+    ~BaumerCamera();
+    BaumerCamera(BaumerCamera&&) noexcept;
+    BaumerCamera& operator=(BaumerCamera&&) noexcept;
+
+    auto GetAvailableCameras() -> std::vector<DataStream>&;
 
 public:
-  class DataStream
-  {
-  private:
-     class Impl;
+    class Impl;
+private:
+    std::unique_ptr<Impl> _pImpl;
+};
 
-  public:
+class DataStream
+{
+private:
+    class Impl;
+
+public:
     DataStream(std::unique_ptr<Impl>&& pImpl);
     ~DataStream();
     DataStream(DataStream&&) noexcept;
@@ -23,23 +37,17 @@ public:
 
     void StartCamera();
     void StopCamera();
-    bool GetFrame(cv::Mat& frame);
+    bool GetFrame(cv::Mat& frame) const;
     void SetExposureTime(double exposureTime);
+    auto GetExposureTime() const -> double;
     void SetGain(double gain);
-
-  private:
-    std::unique_ptr<Impl> _pImpl;
-    friend BaumerCamera::Impl;
-  };
-
-public:
-  BaumerCamera();
-  ~BaumerCamera();
-  BaumerCamera(BaumerCamera&&) noexcept;
-  BaumerCamera& operator=(BaumerCamera&&) noexcept;
-
-  auto GetAvailableCameras() -> std::vector<DataStream>&;
+    auto GetGain() const -> double;
+    auto GetSerialNumber() const -> std::string;
+    auto GetVendor() const -> std::string;
 
 private:
-   std::unique_ptr<Impl> _pImpl;
+    std::unique_ptr<Impl> _pImpl;
+    friend BaumerCamera::Impl;
 };
+
+} /// ena namespace baumer

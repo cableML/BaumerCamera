@@ -18,6 +18,7 @@ set(bgapi_DIR "/opt/baumer-gapi-sdk/lib/cmake/bgapi" CACHE STRING "Path to the c
 find_package(bgapi 2.10 REQUIRED COMPONENTS genicam ext_sc)
 
 include_directories(
+        .
         include
         ${OpenCV_INCLUDE_DIRS})
 

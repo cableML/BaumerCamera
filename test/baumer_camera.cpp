@@ -26,6 +26,9 @@ auto main(int argc, char** argv) -> int32_t
   auto i = 0;
   for (auto& availableCamera : availableCameras)
   {
+      if (availableCamera.GetVendor() != "Baumer") {
+          continue;
+      }
       availableCamera.StartCamera();
       availableCamera.SetExposureTime(exposition);
       availableCamera.SetGain(gain);
@@ -39,6 +42,9 @@ auto main(int argc, char** argv) -> int32_t
     i = 0;
     for (auto& availableCamera : availableCameras)
     {
+        if (availableCamera.GetVendor() != "Baumer") {
+            continue;
+        }
         availableCamera.GetFrame(frame);
         cv::imshow(std::string("Camera #") + std::to_string(index++), frame);
         auto frameNumberStr = std::to_string(frameNumber);
@@ -52,6 +58,9 @@ auto main(int argc, char** argv) -> int32_t
   }
   for (auto& availableCamera : availableCameras)
   {
+      if (availableCamera.GetVendor() != "Baumer") {
+          continue;
+      }
       availableCamera.StopCamera();
   }
   return 0;

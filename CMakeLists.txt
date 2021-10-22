@@ -16,11 +16,11 @@ endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
 set(bgapi_DIR "C:/Program Files/Baumer GAPI SDK (64 Bit)/Components/Dev/C++/Lib/cmake/bgapi" CACHE STRING "Path to the cmake subfolder of bgapi-sdk installation directory")
+find_package(bgapi 2.11 REQUIRED COMPONENTS genicam ext_sc)
 else()
 set(bgapi_DIR "/opt/baumer-gapi-sdk/lib/cmake/bgapi" CACHE STRING "Path to the cmake subfolder of bgapi-sdk installation directory")
+find_package(bgapi 2.10 REQUIRED COMPONENTS genicam ext_sc)
 endif()
-
-find_package(bgapi 2.11 REQUIRED COMPONENTS genicam ext_sc)
 
 include_directories(
         .
